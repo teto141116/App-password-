@@ -13,12 +13,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Find project directory
+      - name: Unzip project
         run: |
-          SETTINGS=$(find . -maxdepth 3 -name "settings.gradle.kts" -not -path "*/node_modules/*" | head -n 1)
+          ZIP=$(find . -maxdepth 2 -iname "*.zip" -not -path "./.git/*" | head -n 1)
+          if [ -n "$ZIP" ]; then
+            echo "Unzipping $ZIP"
+            mkdir -p "$RUNNER_TEMP/src"
+            unzip -q -o "$ZIP" -d "$RUNNER_TEMP/src"
+            SEARCH="$RUNNER_TEMP/src"
+          else
+            echo "No zip found, using repo files"
+            SEARCH="."
+          fi
+          SETTINGS=$(find "$SEARCH" -maxdepth 4 -name "settings.gradle.kts" -not -path "*/.git/*" | head -n 1)
           if [ -z "$SETTINGS" ]; then
-            echo "settings.gradle.kts not found. Repo files:"
-            find . -maxdepth 3 -not -path "./.git/*" | head -n 50
+            echo "settings.gradle.kts not found. Files:"
+            find "$SEARCH" -maxdepth 4 -not -path "*/.git/*" | head -n 60
             exit 1
           fi
           DIR=$(dirname "$SETTINGS")
@@ -46,5 +56,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: GmailReader-debug-apk
-          path: "**/build/outputs/apk/debug/*.apk"
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
